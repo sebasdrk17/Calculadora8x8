@@ -7,7 +7,6 @@
 #use fast_io(c)
 #use fast_io(d)
 #use fast_io(e)
-signed long resultado=0; //numero con signo
 
 //#define __DEBUG_SERIAL__ //Si comentas esta linea se deshabilita el debug por serial y el PIN_C6 puede ser usado en forma digital I/O
 #ifdef __DEBUG_SERIAL__
@@ -16,15 +15,76 @@ signed long resultado=0; //numero con signo
    #use fast_io(c)
 #endif
 
+void division0();
 void main(){
     setup_oscillator(OSC_16MHZ);
     #ifdef __DEBUG_SERIAL__ //Deberiamos de proteger nuestras depuraciones de esta forma o usar una macro ya protegida.
     printf("Hola Mundo\n");//Puedes usar putc o printf. Revisa la documentación de CCS para ver que mas puedes hacer.
     #endif
     // asignar los puertos que seran de entrada y salida
-    set_tris_a(0xC0);
+    set_tris_a(0xC0);// no puede tomar los ultimos dos bits como salida, debido a que estos son para los OSC
     set_tris_b(0xF0);// la mitad del puerto sera de entrada para la selección de operación
-    set_tris_c(0x3F);// 6 bits completos seran de entrada
+    set_tris_c(0x3F);// 6 bits completos seran de entrada debido a que los ultimos 2 son salida por defecto
     set_tris_d(0xFF);// todo el puerto sera de entrada
-    set_tris_e(0x08);// el bit 4 sera de entrada
+    set_tris_e(0x08);// debido a que es un puerto de 4 bits, estos 4 seran de salida
+    int opcion=0;
+    signed long resultado=0; //numero con signo
+    while(1){
+        if(input(PIN_B4)==0){
+            opcion=1; //suma
+        }else if(input(PIN_B5)==0){
+            opcion=2; //resta
+        }else if(input(PIN_B6)==0){
+            opcion=3; //multi
+        }else if(input(PIN_B7)==0){
+            opcion=4; //div
+        }
+        switch(opcion){
+            case 1:
+                resultado=(long)input_c()+(long)input_d();
+                opcion=0;
+                break;
+            case 2:
+                if((long)input_c()<(long)input_d()){
+                    resultado=(long)input_c()-(long)input_d();
+                    resultado=(~resultado)+1;
+                }else{
+                    resultado=(long)input_c()-(long)input_d();
+                }
+                opcion=0;
+                break;
+            case 3:
+                resultado=(long)input_c()*(long)input_d();
+                opcion=0;
+                break;
+            case 4:
+                if((long)input_d()!=0){
+                    resultado=(long)input_c()/(long)input_d();
+                    opcion=0;
+                }else{
+                    error();
+                }
+                opcion=0;
+                break;
+        }
+        output_a(resultado);
+        output_b(resultado>>6);
+        output_e(resultado>>10);;
+    }
+}
+  //esta funcion es para los posibles casos de error
+void error(){
+    long error = 0;
+    for(int i=0;i<5;i++){
+        error=0x1FFF;
+        output_a(error);
+        output_b(error>>6);
+        output_e(error>>10);
+        delay_ms(300);
+        error=0;
+        output_a(error);
+        output_b(error>>6);
+        output_e(error>>10);
+        delay_ms(300);
+    }
 }
